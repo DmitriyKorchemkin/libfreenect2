@@ -313,6 +313,7 @@ int main(int argc, char *argv[])
 
   dev->setColorFrameListener(&listener);
   dev->setIrAndDepthFrameListener(&listener);
+
 /// [listeners]
 
 /// [start]
@@ -332,6 +333,9 @@ int main(int argc, char *argv[])
 /// [start]
 
 /// [registration setup]
+  auto pars = dev->getIrCameraParams();
+  std::cout << pars.fx << " 0 " << pars.cx << "\n0 " << pars.fy << " " << pars.cy << "\n0 0 1\n"
+    << pars.k1 << " " << pars.k2 << " " << pars.k3 << " " << pars.p1 << " " << pars.p2 << std::endl;
   libfreenect2::Registration* registration = new libfreenect2::Registration(dev->getIrCameraParams(), dev->getColorCameraParams());
   libfreenect2::Frame undistorted(512, 424, 4), registered(512, 424, 4);
 /// [registration setup]

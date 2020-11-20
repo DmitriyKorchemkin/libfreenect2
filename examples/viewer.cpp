@@ -73,12 +73,17 @@ void Viewer::initialize()
         "} FragmentIn;"
         
         "layout(location = 0) out vec4 Color;"
-        
+        "vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )"
+        "{"
+         "     return a + b*cos( 6.28318*(c*t+d) );"
+        "}"
+
         "void main(void)"
         "{"
             "ivec2 uv = ivec2(FragmentIn.TexCoord.x, FragmentIn.TexCoord.y);"
             "tempColor = texelFetch(Data, uv);"
-            "Color = vec4(tempColor.x/4500, tempColor.x/4500, tempColor.x/4500, 1);"
+                           "vec3  col =  pal( min(tempColor.x/2000.f,1.f)+.01f, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67) );;"
+            "Color = vec4(col, 1);"
         "}";
     std::string fragmentshader = ""
         "#version 330\n"
@@ -134,8 +139,13 @@ void Viewer::key_callbackstatic(GLFWwindow* window, int key, int scancode, int a
 
 void Viewer::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    std::cout << key << " " << action << std::endl;
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         shouldStop = true;
+    }
+    if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
+      shouldSave = true;
+    }
 }
 
 void Viewer::onOpenGLBindingsChanged(OpenGLBindings *b)
@@ -155,6 +165,7 @@ bool Viewer::render()
     int fb_width, fb_width_half, fb_height, fb_height_half;
 
     std::map<std::string, libfreenect2::Frame*>::iterator iter;
+
 
     for (iter = frames.begin(); iter != frames.end(); ++iter)
     {
@@ -208,6 +219,7 @@ bool Viewer::render()
             rgb.allocate(frame->width, frame->height);
             std::copy(frame->data, frame->data + frame->width * frame->height * frame->bytes_per_pixel, rgb.data);
             rgb.flipY();
+            rgb.flipX();
             rgb.upload();
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -221,6 +233,7 @@ bool Viewer::render()
             ir.allocate(frame->width, frame->height);
             std::copy(frame->data, frame->data + frame->width * frame->height * frame->bytes_per_pixel, ir.data);
             ir.flipY();
+            ir.flipX();
             ir.upload();
             glDrawArrays(GL_TRIANGLES, 0, 6);
             ir.deallocate();
@@ -228,6 +241,57 @@ bool Viewer::render()
 
         gl()->glDeleteBuffers(1, &triangle_vbo);
         gl()->glDeleteVertexArrays(1, &triangle_vao);
+    }
+    if (shouldSave) {
+      shouldSave = false;
+      static int id = 0;
+      for (auto& framep: frames) {
+        auto frame = framep.second;
+        if (framep.first == "RGB") {
+            rgb.allocate_mem(frame->width, frame->height);
+            std::copy(frame->data, frame->data + frame->width * frame->height * frame->bytes_per_pixel, rgb.data);
+            rgb.flipY();
+            rgb.flipX();
+            rgb.save("rgb", id);
+            rgb.deallocate_mem();
+        }
+        if (framep.first == "ir") {
+            ir.allocate_mem(frame->width, frame->height);
+            std::copy(frame->data, frame->data + frame->width * frame->height * frame->bytes_per_pixel, ir.data);
+            ir.flipY();
+            ir.flipX();
+            ir.save("ir", id);
+            ir.deallocate_mem();
+        }
+        if (framep.first == "depth") {
+            ir.allocate_mem(frame->width, frame->height);
+            std::copy(frame->data, frame->data + frame->width * frame->height * frame->bytes_per_pixel, ir.data);
+            ir.flipY();
+            ir.flipX();
+            ir.save("depth", id);
+            ir.deallocate_mem();
+        }
+      }
+      ++id;
+
+
+#if 0
+      for (auto& f : frames) {
+        static int rgb_id = 0;
+        static int ir_id = 0;
+        static int depth_id = 0;
+
+        if (f.first == "RGB") {
+          std::cout << "RF" << std::endl;
+        }
+        if (f.first == "ir") {
+          std::cout << "IF" << std::endl;
+        }
+        if (f.first == "depth") {
+          std::cout << "DF" << std::endl;
+        }
+      }
+#endif
     }
 
     // put the stuff we've been drawing onto the display

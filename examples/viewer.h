@@ -5,7 +5,10 @@
 #include <libfreenect2/frame_listener.hpp>
 #include <iostream>
 #include <string>
+#include <sstream>
+#include <fstream>
 #include <map>
+#include <iomanip>
 
 #include "flextGL.h"
 #include <GLFW/glfw3.h>
@@ -77,12 +80,16 @@ public:
         glBindTexture(GL_TEXTURE_RECTANGLE, texture);
     }
 
-    void allocate(size_t new_width, size_t new_height)
-    {
+    void allocate_mem(size_t new_width, size_t new_height) {
         width = new_width;
         height = new_height;
         size = height * width * bytes_per_pixel;
         data = new unsigned char[size];
+    }
+
+    void allocate(size_t new_width, size_t new_height)
+    {
+        allocate_mem(new_width, new_height);
 
         glGenTextures(1, &texture);
         bindToUnit(GL_TEXTURE0);
@@ -92,11 +99,14 @@ public:
         glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_RECTANGLE, 0, FormatT::InternalFormat, width, height, 0, FormatT::Format, FormatT::Type, 0);
     }
+    void deallocate_mem() {
+        delete[] data;
+    }
 
     void deallocate()
     {
         glDeleteTextures(1, &texture);
-        delete[] data;
+        deallocate_mem();
     }
 
     void upload()
@@ -116,9 +126,37 @@ public:
         glReadPixels(0, 0, width, height, FormatT::Format, FormatT::Type, data);
     }
 
+    void flipX() {
+        typedef unsigned char type;
+
+        size_t linestep = width * bytes_per_pixel / sizeof(type);
+
+        for (size_t y = 0; y < height; ++y) {
+          for (size_t x = 0; x < width/2; ++x) {
+            for (size_t b = 0; b < bytes_per_pixel; ++ b) {
+              std::swap(
+                  *(reinterpret_cast<uint8_t*>(data) + y * width * bytes_per_pixel + x*bytes_per_pixel+b),
+                  *(reinterpret_cast<uint8_t*>(data) + y * width * bytes_per_pixel + bytes_per_pixel * (width - x-1)+b));
+
+            }
+          }
+        }
+    }
+
     void flipY()
     {
         flipYBuffer(data);
+    }
+
+    void save(const std::string &base, int id) {
+      std::stringstream ss;
+      ss << base << "_" << std::setw(6) << std::setfill('0') << id << ".bin";
+      std::ofstream of(ss.str(), std::ios_base::binary | std::ios_base::out);
+      std::cout << "Size: " << height << " x " << width << " @ " << bytes_per_pixel << std::endl;
+      of.write(reinterpret_cast<const char*>(&height), sizeof(height));
+      of.write(reinterpret_cast<const char*>(&width), sizeof(width));
+      of.write(reinterpret_cast<const char*>(&bytes_per_pixel), sizeof(bytes_per_pixel));
+      of.write(reinterpret_cast<const char*>(data), width * height * bytes_per_pixel);
     }
 
     void flipYBuffer(unsigned char *data)
@@ -263,6 +301,7 @@ struct ShaderProgram : public WithOpenGLBindings
 class Viewer : WithOpenGLBindings {
 private:
     bool shouldStop;
+    bool shouldSave = false;
     GLFWwindow* window;
     GLuint triangle_vbo, triangle_vao;
     ShaderProgram renderShader;

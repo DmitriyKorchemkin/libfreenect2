@@ -89,12 +89,12 @@ DepthPacketProcessor::Parameters::Parameters()
   kde_threshold = 0.5f; //threshold on the KDE output in eq (25), defines the inlier/outlier rate trade-off
 
   kde_neigborhood_size = 5; //spatial support of the KDE, defines a filter size of (2*kde_neigborhood_size+1 x 2*kde_neigborhood_size+1)
-  num_hyps = 2; //number of phase unwrapping hypothesis considered by the KDE in each pixel. Implemented values are 2 and 3.
+  num_hyps = 3; //number of phase unwrapping hypothesis considered by the KDE in each pixel. Implemented values are 2 and 3.
   //a large kde_neigborhood_size improves performance but may remove fine structures and makes the processing slower.
   //setting num_hyp to 3 improves the performance slightly but makes processing slower
 
-  min_depth = 500.0f;
-  max_depth = 4500.0f; //set to > 8000 for best performance when using the kde pipeline
+  min_depth = 100.0f;
+  max_depth =16000.0f; //set to > 8000 for best performance when using the kde pipeline
 }
 
 DepthPacketProcessor::DepthPacketProcessor() :
